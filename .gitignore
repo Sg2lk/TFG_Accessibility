@@ -1,0 +1,60 @@
+# -------------------------
+# Python cache
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# -------------------------
+# Virtual environments
+# -------------------------
+/tfg_accessibility/
+.venv/
+venv/
+env/
+
+# -------------------------
+# Build / packaging outputs
+# -------------------------
+/build/
+/dist/
+/installer/
+/installer_output/
+/TFG_Accessibility.spec
+
+# -------------------------
+# Local utility scripts
+# -------------------------
+/kill_tfg.bat
+
+# -------------------------
+# Logs and temporary files
+# -------------------------
+*.log
+*.tmp
+*.temp
+
+# -------------------------
+# IDE / editor files
+# -------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -------------------------
+# OS files
+# -------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# -------------------------
+# Models
+# Keep only the official MediaPipe model
+# -------------------------
+/models/*
+!/models/face_landmarker.task
