@@ -152,8 +152,8 @@ Además, se utiliza `tkinter` en algunos scripts de evaluación. En Windows suel
 Clonar el repositorio y entrar en la carpeta del proyecto:
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd <NOMBRE_DEL_REPOSITORIO>
+git clone <https://github.com/Sg2lk/TFG_Accessibility>
+cd <TFG_Accessibility>
 ```
 
 Crear y activar un entorno virtual:
