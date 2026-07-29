@@ -287,14 +287,16 @@ Los logs almacenan información técnica de ejecución, estados, errores y traza
 
 ## Scripts de evaluación
 
-El repositorio incluye varios scripts utilizados para comprobar aspectos concretos del prototipo:
+El repositorio incluye varios scripts utilizados para evaluar distintos aspectos del prototipo:
 
 | Script | Propósito |
 | --- | --- |
-| `src/evaluar_metricas_cursor.py` | Evalúa estabilidad y desplazamientos del cursor en distintas fases de procesamiento. |
-| `src/evaluar_precision_puntos_simple.py` | Mide error respecto a puntos objetivo en pantalla. |
-| `src/evaluar_rendimiento_f10_aplicacion.py` | Evalúa rendimiento general de la aplicación, tiempos de ciclo, detección facial y FPS. |
-| `src/evaluar_teclado_virtual_app.py` | Evalúa escritura mediante el teclado virtual en una ventana externa. |
+| `src/evaluar_metricas_cursor.py` | Evalúa la estabilidad del cursor en reposo y registra métricas de desplazamiento mediante los cursores *raw*, *smooth* y *pipe*. |
+| `src/evaluar_precision_puntos_simple.py` | Mide la precisión del cursor respecto a una cuadrícula de puntos objetivo distribuida por la pantalla. |
+| `src/evaluar_rendimiento_f10_aplicacion.py` | Evalúa el rendimiento general de la aplicación, incluyendo FPS, tiempos de captura, seguimiento facial, procesamiento del cursor y otras métricas temporales. |
+| `src/evaluar_teclado_virtual_app.py` | Evalúa la escritura mediante el teclado virtual utilizando frases predefinidas. |
+| `src/evaluar_latencia_cursor.py` | Evalúa la latencia introducida por el procesamiento del cursor comparando las trayectorias *raw* y *pipe* durante movimientos bruscos de la cabeza. |
+| `src/evaluar_fitts_comparativa.py` | Implementa una prueba basada en la ley de Fitts para comparar el rendimiento del prototipo con otros sistemas de control del cursor, como Camera Mouse o eViacam. |
 
 Ejemplo de ejecución:
 
@@ -303,19 +305,19 @@ python -m src.evaluar_metricas_cursor
 python -m src.evaluar_precision_puntos_simple
 python -m src.evaluar_rendimiento_f10_aplicacion
 python -m src.evaluar_teclado_virtual_app
+python -m src.evaluar_latencia_cursor
+python -m src.evaluar_fitts_comparativa
 ```
 
 Estas pruebas requieren cámara funcional y, en algunos casos, interacción manual durante la calibración o durante la escritura.
 
 ## Evaluación del modelo OpenVINO
 
-El repositorio incluye los scripts utilizados para evaluar el modelo **OpenVINO Gaze Estimation** sobre el conjunto de datos **EOTT**.
+El repositorio incluye los scripts utilizados para evaluar el modelo **OpenVINO** en la carpeta `evaluation_openvino` sobre el conjunto de datos **EOTT**.
 
 ### Requisitos
 
-- Windows
 - Python 3.11.9
-- Conexión a Internet (solo necesaria durante la instalación inicial)
 
 ### 1. Instalar Python
 
@@ -365,7 +367,11 @@ Este comando descargará automáticamente todos los modelos necesarios para ejec
 
 ### 6. Descargar el conjunto de datos EOTT
 
-Descargar el conjunto de datos **EOTT (Eye Orientation Tracking Test)** desde su página oficial y descomprimirlo en la siguiente ubicación:
+El conjunto de datos **EOTT (Eye of the Typer Dataset)** puede descargarse desde su página oficial:
+
+:contentReference[oaicite:0]{index=0}
+
+Una vez descargado, descomprímelo en la siguiente ubicación:
 
 ```text
 C:\Users\<USUARIO>\OneDrive\Documents\TFG\DataSet\EOTT\
