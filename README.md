@@ -307,6 +307,107 @@ python -m src.evaluar_teclado_virtual_app
 
 Estas pruebas requieren cámara funcional y, en algunos casos, interacción manual durante la calibración o durante la escritura.
 
+## Evaluación del modelo OpenVINO
+
+El repositorio incluye los scripts utilizados para evaluar el modelo **OpenVINO Gaze Estimation** sobre el conjunto de datos **EOTT**.
+
+### Requisitos
+
+- Windows
+- Python 3.11.9
+- Conexión a Internet (solo necesaria durante la instalación inicial)
+
+### 1. Instalar Python
+
+Descargar e instalar **Python 3.11.9** desde la página oficial:
+
+https://www.python.org/downloads/release/python-3119/
+
+Durante la instalación, se recomienda marcar la opción **"Add Python to PATH"**.
+
+---
+
+### 2. Crear un entorno virtual
+
+Desde la carpeta raíz del proyecto:
+
+```powershell
+py -3.11 -m venv env_blackbox
+```
+
+---
+
+### 3. Activar el entorno virtual
+
+```powershell
+.\env_blackbox\Scripts\Activate
+```
+
+---
+
+### 4. Instalar las dependencias
+
+```powershell
+python -m pip install -r evaluation_openvino\requirements-openvino.txt
+```
+
+---
+
+### 5. Descargar los modelos de OpenVINO
+
+```powershell
+omz_downloader --list evaluation_openvino\models.lst --output_dir evaluation_openvino\openvino_models
+```
+
+Este comando descargará automáticamente todos los modelos necesarios para ejecutar la evaluación.
+
+---
+
+### 6. Descargar el conjunto de datos EOTT
+
+Descargar el conjunto de datos **EOTT (Eye Orientation Tracking Test)** desde su página oficial y descomprimirlo en la siguiente ubicación:
+
+```text
+C:\Users\<USUARIO>\OneDrive\Documents\TFG\DataSet\EOTT\
+```
+
+Dentro de la carpeta `EOTT` debe encontrarse el directorio:
+
+```text
+WebGazerETRA2018Dataset_Release20180420
+```
+
+> **Nota**
+>
+> El script detecta automáticamente el nombre del usuario de Windows, por lo que únicamente es necesario respetar la estructura de carpetas indicada.
+
+---
+
+### 7. Ejecutar la evaluación
+
+Ejemplo de ejecución:
+
+```powershell
+python evaluation_openvino\eval_openvino_eott_common_metrics.py --videos-per-participant 1 --max-participants 6
+```
+
+### Parámetros opcionales
+
+| Parámetro | Descripción |
+|-----------|-------------|
+| `--videos-per-participant` | Número máximo de vídeos evaluados por participante. |
+| `--max-participants` | Número máximo de participantes evaluados. |
+
+### Resultados
+
+Durante la ejecución se mostrarán por consola las métricas obtenidas. Además, el script generará automáticamente el archivo:
+
+```text
+openvino_metrics.csv
+```
+
+Este archivo contiene un resumen de las métricas obtenidas en la ejecución y se actualiza automáticamente en cada nueva evaluación.
+
 ## Limitaciones actuales
 
 - El sistema es un prototipo académico y no una solución asistiva certificada.
