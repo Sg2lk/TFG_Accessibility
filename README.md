@@ -367,9 +367,9 @@ Este comando descargará automáticamente todos los modelos necesarios para ejec
 
 ### 6. Descargar el conjunto de datos EOTT
 
-El conjunto de datos **EOTT (Eye of the Typer Dataset)** puede descargarse desde su página oficial:
+El conjunto de datos **EOTT (The Eye Of The Typer Dataset)** puede descargarse desde su página oficial:
 
-:contentReference[oaicite:0]{index=0}
+https://webgazer.cs.brown.edu/data/
 
 Una vez descargado, descomprímelo en la siguiente ubicación:
 
