@@ -296,7 +296,6 @@ El repositorio incluye varios scripts utilizados para evaluar distintos aspectos
 | `src/evaluar_rendimiento_f10_aplicacion.py` | Evalúa el rendimiento general de la aplicación, incluyendo FPS, tiempos de captura, seguimiento facial, procesamiento del cursor y otras métricas temporales. |
 | `src/evaluar_teclado_virtual_app.py` | Evalúa la escritura mediante el teclado virtual utilizando frases predefinidas. |
 | `src/evaluar_latencia_cursor.py` | Evalúa la latencia introducida por el procesamiento del cursor comparando las trayectorias *raw* y *pipe* durante movimientos bruscos de la cabeza. |
-| `src/evaluar_fitts_comparativa.py` | Implementa una prueba basada en la ley de Fitts para comparar el rendimiento del prototipo con otros sistemas de control del cursor, como Camera Mouse o eViacam. |
 
 Ejemplo de ejecución:
 
@@ -306,7 +305,6 @@ python -m src.evaluar_precision_puntos_simple
 python -m src.evaluar_rendimiento_f10_aplicacion
 python -m src.evaluar_teclado_virtual_app
 python -m src.evaluar_latencia_cursor
-python -m src.evaluar_fitts_comparativa
 ```
 
 Estas pruebas requieren cámara funcional y, en algunos casos, interacción manual durante la calibración o durante la escritura.
