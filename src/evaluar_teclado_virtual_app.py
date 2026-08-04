@@ -1,3 +1,4 @@
+import csv
 import os
 import sys
 import time
@@ -23,17 +24,15 @@ indice = 0
 inicio = None
 backspaces = 0
 resultados = []
+RESULTADOS_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "teclado_virtual_detallado.csv")
 
-
-def contar_errores(objetivo, escrito):
-    errores = abs(len(objetivo) - len(escrito))
-    limite = min(len(objetivo), len(escrito))
-
-    for i in range(limite):
-        if objetivo[i] != escrito[i]:
-            errores += 1
-
-    return errores
+CABECERA_CSV = [
+    "Ejecución",
+    "Frase",
+    "Caracteres",
+    "Tiempo empleado (s)",
+    "Correcciones",
+]
 
 
 def lanzar_aplicacion():
@@ -98,35 +97,13 @@ def terminar_frase(event=None):
         return "break"
 
     objetivo = FRASES[indice]
-    escrito = texto.get()
     tiempo = time.time() - inicio
 
-    errores = contar_errores(objetivo, escrito)
-    correctos = max(0, len(objetivo) - errores)
-
-    cpm = 0
-    if tiempo > 0:
-        cpm = correctos / (tiempo / 60)
-
-    precision = 0
-    if len(objetivo) > 0:
-        precision = correctos / len(objetivo) * 100
-
-    exito = escrito == objetivo
-
-    resultado = {
+    resultados.append({
         "objetivo": objetivo,
-        "escrito": escrito,
         "tiempo": tiempo,
-        "cpm": cpm,
-        "errores": errores,
         "correcciones": backspaces,
-        "precision": precision,
-        "exito": exito,
-    }
-
-    resultados.append(resultado)
-    imprimir_resultado(resultado)
+    })
 
     indice += 1
     if indice < len(FRASES):
@@ -137,50 +114,82 @@ def terminar_frase(event=None):
     return "break"
 
 
-def imprimir_resultado(r):
-    print("\n" + "=" * 55)
-    print("Frase objetivo:", r["objetivo"])
-    print("Texto escrito:  ", r["escrito"])
-    print("Exito:          ", "SI" if r["exito"] else "NO")
-    print(f"Tiempo:         {r['tiempo']:.2f} s")
-    print(f"Caracteres/min: {r['cpm']:.2f}")
-    print("Errores:        ", r["errores"])
-    print("Correcciones:   ", r["correcciones"])
-    print(f"Precision:      {r['precision']:.2f} %")
-
-
 def terminar_prueba():
     entrada.config(state="disabled")
     frase_label.config(text="Prueba terminada")
-    estado_label.config(text="Resultados impresos por terminal.")
-    imprimir_resumen()
+
+    try:
+        guardar_csv()
+    except Exception as error:
+        estado_label.config(text="No se pudieron guardar los resultados.")
+        print("Error al guardar los resultados:", error)
+        return
+
+    estado_label.config(text="Resultados guardados correctamente.")
+    print("Prueba terminada. Resultados guardados en el CSV.")
 
 
-def imprimir_resumen():
-    total = len(resultados)
-    exitos = 0
-    tiempo = 0
-    cpm = 0
-    errores = 0
-    correcciones = 0
+def numero_csv(valor):
+    return ("%.2f" % valor).replace(".", ",")
 
-    for r in resultados:
-        if r["exito"]:
-            exitos += 1
-        tiempo += r["tiempo"]
-        cpm += r["cpm"]
-        errores += r["errores"]
-        correcciones += r["correcciones"]
 
-    print("\n" + "=" * 55)
-    print("RESUMEN FINAL")
-    print(f"Frases completadas: {total}")
-    print(f"Tasa de exito:      {exitos / total * 100:.2f} %")
-    print(f"Tiempo medio:       {tiempo / total:.2f} s")
-    print(f"CPM medio:          {cpm / total:.2f}")
-    print(f"Errores totales:    {errores}")
-    print(f"Correcciones:       {correcciones}")
-    print("=" * 55)
+def validar_csv_existente():
+    if not os.path.exists(RESULTADOS_CSV) or os.path.getsize(RESULTADOS_CSV) == 0:
+        return
+
+    with open(RESULTADOS_CSV, "r", newline="", encoding="utf-8-sig") as archivo:
+        lector = csv.reader(archivo, delimiter=";")
+        cabecera = next(lector, [])
+
+    if cabecera != CABECERA_CSV:
+        raise RuntimeError(
+            "El CSV existente no tiene el formato detallado esperado. "
+            "Renómbralo o elimínalo antes de continuar."
+        )
+
+
+def obtener_numero_ejecucion():
+    validar_csv_existente()
+
+    if not os.path.exists(RESULTADOS_CSV) or os.path.getsize(RESULTADOS_CSV) == 0:
+        return 1
+
+    ejecuciones = []
+
+    with open(RESULTADOS_CSV, "r", newline="", encoding="utf-8-sig") as archivo:
+        lector = csv.DictReader(archivo, delimiter=";")
+
+        for fila in lector:
+            try:
+                ejecuciones.append(int((fila.get("Ejecución") or "").strip()))
+            except ValueError:
+                continue
+
+    return max(ejecuciones, default=0) + 1
+
+
+def guardar_csv():
+    if len(resultados) != len(FRASES):
+        raise RuntimeError("La prueba no está completa. No se han guardado resultados.")
+
+    validar_csv_existente()
+    archivo_existente = os.path.exists(RESULTADOS_CSV) and os.path.getsize(RESULTADOS_CSV) > 0
+    ejecucion = obtener_numero_ejecucion()
+
+    with open(RESULTADOS_CSV, "a", newline="", encoding="utf-8-sig") as archivo:
+        escritor = csv.writer(archivo, delimiter=";")
+
+        if not archivo_existente:
+            escritor.writerow(CABECERA_CSV)
+
+        for numero_frase, resultado in enumerate(resultados, 1):
+            escritor.writerow([
+                ejecucion,
+                numero_frase,
+                len(resultado["objetivo"]),
+                numero_csv(resultado["tiempo"]),
+                resultado["correcciones"],
+            ])
 
 
 def mantener_foco():
@@ -254,7 +263,6 @@ def main():
     input("\nPulsa ENTER aqui cuando quieras mostrar la ventana de evaluacion...")
 
     crear_ventana()
-
 
 if __name__ == "__main__":
     main()

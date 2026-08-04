@@ -58,3 +58,13 @@ desktop.ini
 # -------------------------
 /models/*
 !/models/face_landmarker.task
+
+# Entorno aislado de evaluación OpenVINO
+env_blackbox/
+
+# Modelos descargados de OpenVINO
+evaluation_openvino/openvino_models/
+
+# Caché de Python
+__pycache__/
+*.py[cod]

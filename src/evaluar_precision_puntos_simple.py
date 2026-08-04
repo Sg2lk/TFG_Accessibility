@@ -1,3 +1,4 @@
+import csv
 import math
 import sys
 import time
@@ -21,6 +22,7 @@ VENTANA = "Prueba de precision por puntos"
 
 ruta_actual = Path(__file__).resolve()
 carpeta_actual = ruta_actual.parent
+RESULTADOS_CSV = carpeta_actual / "precision_puntos.csv"
 
 if carpeta_actual.name == "src":
     raiz_proyecto = carpeta_actual.parent
@@ -38,6 +40,31 @@ from src.processing.precision import PrecisionStabilizer
 from src.processing.smoothing import PositionSmoother
 from src.vision.camera import Camera
 from src.vision.face_tracker import FaceTracker
+
+
+CABECERA_CSV = [
+    "Ejecución",
+    "Cursor",
+    "Zona",
+    "Muestras",
+    "Error medio (px)",
+    "Mediana error (px)",
+    "p95 error (px)",
+    "Error máximo (px)",
+    "Dentro de 50 px (%)",
+]
+
+CABECERA_ANTERIOR = [
+    "Cursor",
+    "Zona",
+    "Muestras",
+    "Error medio (px)",
+    "Mediana error (px)",
+    "p95 error (px)",
+    "Error máximo (px)",
+    "Dentro de 30 px (%)",
+    "Dentro de 50 px (%)",
+]
 
 
 ultimo_timestamp_ms = 0
@@ -67,9 +94,10 @@ def mediana(valores):
         return 0.0
 
     ordenados = sorted(valores)
-    centro = len(ordenados) // 2
+    cantidad = len(ordenados)
+    centro = cantidad // 2
 
-    if len(ordenados) % 2 == 1:
+    if cantidad % 2 == 1:
         return ordenados[centro]
 
     return (ordenados[centro - 1] + ordenados[centro]) / 2
@@ -139,36 +167,135 @@ def obtener_errores_totales(resultados, nombre_cursor):
     return errores
 
 
-def imprimir_resumen_cursor(resultados, nombre_cursor):
-    errores = obtener_errores_totales(resultados, nombre_cursor)
+def numero_csv(valor):
+    return ("%.2f" % valor).replace(".", ",")
 
-    print("\n" + "=" * 70)
-    print("Cursor:", nombre_cursor)
-    print("=" * 70)
-    print("Muestras medidas:", len(errores))
-    print("Error medio respecto al punto: %.2f px" % media(errores))
-    print("Mediana del error:             %.2f px" % mediana(errores))
-    print("p95 del error:                 %.2f px" % percentil_95(errores))
 
-    if len(errores) > 0:
-        print("Error maximo:                  %.2f px" % max(errores))
-    else:
-        print("Error maximo:                  0.00 px")
+def preparar_csv_existente():
+    if not RESULTADOS_CSV.exists() or RESULTADOS_CSV.stat().st_size == 0:
+        return
 
-    print("Frames dentro de 30 px:        %.2f %%" % porcentaje_menor_o_igual(errores, 30))
-    print("Frames dentro de 50 px:        %.2f %%" % porcentaje_menor_o_igual(errores, 50))
+    with RESULTADOS_CSV.open("r", newline="", encoding="utf-8-sig") as archivo:
+        filas = list(csv.reader(archivo, delimiter=";"))
 
-    print("\nDetalle por zona:")
+    if not filas or filas[0] == CABECERA_CSV:
+        return
 
-    for nombre_punto in resultados[nombre_cursor]:
-        errores_punto = resultados[nombre_cursor][nombre_punto]["errores"]
-        frames = resultados[nombre_cursor][nombre_punto]["frames"]
+    raise RuntimeError(
+        "El CSV existente no tiene el formato actual. "
+        "Renómbralo o elimínalo antes de continuar."
+    )
 
-        print("-", nombre_punto)
-        print("  Frames:", frames)
-        print("  Error medio: %.2f px" % media(errores_punto))
-        print("  p95:         %.2f px" % percentil_95(errores_punto))
-        print("  Dentro 50:   %.2f %%" % porcentaje_menor_o_igual(errores_punto, 50))
+def obtener_numero_ejecucion():
+    preparar_csv_existente()
+
+    if not RESULTADOS_CSV.exists() or RESULTADOS_CSV.stat().st_size == 0:
+        return 1
+
+    ejecuciones = []
+
+    with RESULTADOS_CSV.open("r", newline="", encoding="utf-8-sig") as archivo:
+        lector = csv.DictReader(archivo, delimiter=";")
+
+        for fila in lector:
+            try:
+                ejecuciones.append(int((fila.get("Ejecución") or "").strip()))
+            except ValueError:
+                continue
+
+    return max(ejecuciones, default=0) + 1
+
+
+def crear_filas_csv(resultados, ejecucion):
+    filas = []
+
+    for nombre_cursor in ["raw", "smooth", "pipe"]:
+        for nombre_punto in resultados[nombre_cursor]:
+            errores_punto = resultados[nombre_cursor][nombre_punto]["errores"]
+            error_maximo_punto = max(errores_punto) if errores_punto else 0.0
+
+            filas.append([
+                ejecucion,
+                nombre_cursor,
+                nombre_punto,
+                len(errores_punto),
+                numero_csv(media(errores_punto)),
+                numero_csv(mediana(errores_punto)),
+                numero_csv(percentil_95(errores_punto)),
+                numero_csv(error_maximo_punto),
+                numero_csv(porcentaje_menor_o_igual(errores_punto, 50)),
+            ])
+
+    return filas
+
+def guardar_csv(resultados):
+    preparar_csv_existente()
+    archivo_existente = RESULTADOS_CSV.exists() and RESULTADOS_CSV.stat().st_size > 0
+    ejecucion = obtener_numero_ejecucion()
+    filas = crear_filas_csv(resultados, ejecucion)
+
+    with RESULTADOS_CSV.open("a", newline="", encoding="utf-8-sig") as archivo:
+        escritor = csv.writer(archivo, delimiter=";")
+
+        if not archivo_existente:
+            escritor.writerow(CABECERA_CSV)
+
+        escritor.writerows(filas)
+
+
+def dibujar_guia_calibracion(frame, tiempo_restante):
+    imagen = frame.copy()
+    alto, ancho = imagen.shape[:2]
+
+    centro_x = ancho // 2
+    centro_y = alto // 2
+
+    cv2.line(
+        imagen,
+        (centro_x - 35, centro_y),
+        (centro_x + 35, centro_y),
+        (255, 255, 255),
+        2,
+    )
+    cv2.line(
+        imagen,
+        (centro_x, centro_y - 35),
+        (centro_x, centro_y + 35),
+        (255, 255, 255),
+        2,
+    )
+
+    cv2.putText(
+        imagen,
+        "Calibracion: mira al centro",
+        (30, 45),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.9,
+        (255, 255, 255),
+        2,
+    )
+
+    cv2.putText(
+        imagen,
+        "Tiempo restante: %.1f s" % tiempo_restante,
+        (30, 85),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.8,
+        (255, 255, 255),
+        2,
+    )
+
+    cv2.putText(
+        imagen,
+        "ESC: cancelar",
+        (30, alto - 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (180, 180, 180),
+        2,
+    )
+
+    return imagen
 
 
 def crear_puntos(ancho, alto):
@@ -218,27 +345,41 @@ def cara_valida(datos_cara):
 
 
 def calibrar(camara, tracker):
-    print("\nCalibracion")
-    print("Mira al centro durante", SEGUNDOS_CALIBRACION, "segundos.")
+    print("Calibración iniciada. Mira al centro de la cruz.")
 
     muestras_yaw = []
     muestras_pitch = []
     inicio = time.perf_counter()
 
+    cv2.namedWindow(VENTANA, cv2.WINDOW_NORMAL)
+
     while time.perf_counter() - inicio < SEGUNDOS_CALIBRACION:
-        datos_cara = leer_datos_cara(camara, tracker)
+        frame = camara.read_frame()
+
+        if frame is None:
+            continue
+
+        datos_cara = tracker.detect(frame, timestamp_ms=obtener_timestamp_ms())
 
         if cara_valida(datos_cara):
             muestras_yaw.append(float(datos_cara.get("yaw")))
             muestras_pitch.append(float(datos_cara.get("pitch")))
 
+        tiempo_restante = max(0.0, SEGUNDOS_CALIBRACION - (time.perf_counter() - inicio))
+        imagen = dibujar_guia_calibracion(frame, tiempo_restante)
+        cv2.imshow(VENTANA, imagen)
+
+        tecla = cv2.waitKey(1) & 0xFF
+        if tecla == 27:
+            raise KeyboardInterrupt()
+
     if len(muestras_yaw) == 0:
-        raise RuntimeError("No se ha detectado la cara durante la calibracion.")
+        raise RuntimeError("No se ha detectado la cara durante la calibración.")
 
     yaw_centro = media(muestras_yaw)
     pitch_centro = media(muestras_pitch)
 
-    print("Calibracion completada con", len(muestras_yaw), "frames validos.")
+    print("Calibración completada.")
     return yaw_centro, pitch_centro
 
 
@@ -360,6 +501,15 @@ def preparar_ventana(ancho, alto):
     cv2.setWindowProperty(VENTANA, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 
+def resultados_completos(resultados):
+    for nombre_cursor in ["raw", "smooth", "pipe"]:
+        for nombre_punto in resultados[nombre_cursor]:
+            if resultados[nombre_cursor][nombre_punto]["frames"] == 0:
+                return False
+
+    return True
+
+
 def main():
     load_and_apply_user_config(settings)
 
@@ -374,13 +524,11 @@ def main():
     puntos = crear_puntos(ancho, alto)
     resultados = crear_resultados(puntos)
 
-    frames_totales = 0
-    frames_validos = 0
-    frames_sin_cara = 0
     prueba_cancelada = False
+    prueba_completada = False
 
     try:
-        print("Iniciando camara y modelo facial...")
+        print("Iniciando cámara y modelo facial...")
         camara.start()
         tracker.start()
 
@@ -390,7 +538,8 @@ def main():
         smoother.reset(centro_x, centro_y)
         precision.reset(centro_x, centro_y)
 
-        print("\nCalentamiento de", SEGUNDOS_CALENTAMIENTO, "segundos.")
+        print("Realizando calentamiento...")
+
         inicio = time.perf_counter()
 
         while time.perf_counter() - inicio < SEGUNDOS_CALENTAMIENTO:
@@ -408,9 +557,7 @@ def main():
 
         preparar_ventana(ancho, alto)
 
-        print("\nPrueba de precision por puntos")
-        print("Mueve el cursor hacia cada punto y mantenlo estable.")
-        print("Los primeros", SEGUNDOS_ENTRADA, "segundos de cada punto no se miden.")
+        print("Prueba iniciada. Mueve el cursor hacia cada punto y mantenlo estable.")
 
         for nombre_punto, objetivo_x, objetivo_y in puntos:
             inicio_punto = time.perf_counter()
@@ -422,13 +569,10 @@ def main():
                 tiempo_restante = SEGUNDOS_POR_PUNTO - tiempo_transcurrido
                 midiendo = tiempo_transcurrido >= SEGUNDOS_ENTRADA
 
-                frames_totales += 1
                 datos_cara = leer_datos_cara(camara, tracker)
                 datos_cara_validos = cara_valida(datos_cara)
 
                 if datos_cara_validos:
-                    frames_validos += 1
-
                     posiciones = actualizar_cursores(
                         datos_cara,
                         yaw_centro,
@@ -444,8 +588,6 @@ def main():
                         guardar_error(resultados, "raw", nombre_punto, raw_x, raw_y, objetivo_x, objetivo_y)
                         guardar_error(resultados, "smooth", nombre_punto, smooth_x, smooth_y, objetivo_x, objetivo_y)
                         guardar_error(resultados, "pipe", nombre_punto, pipe_x, pipe_y, objetivo_x, objetivo_y)
-                else:
-                    frames_sin_cara += 1
 
                 pantalla = dibujar_pantalla(
                     ancho,
@@ -469,24 +611,28 @@ def main():
             if prueba_cancelada:
                 break
 
-        cv2.destroyWindow(VENTANA)
-
-        print("\nPrueba terminada.")
-        print("Frames totales:", frames_totales)
-        print("Frames validos:", frames_validos)
-        print("Frames sin cara:", frames_sin_cara)
-
-        imprimir_resumen_cursor(resultados, "raw")
-        imprimir_resumen_cursor(resultados, "smooth")
-        imprimir_resumen_cursor(resultados, "pipe")
+        prueba_completada = not prueba_cancelada and resultados_completos(resultados)
 
     except KeyboardInterrupt:
-        print("\nPrueba cancelada por el usuario.")
-
+        prueba_cancelada = True
+        print("Prueba cancelada. No se han guardado resultados.")
+    except Exception as error:
+        print("Error:", error)
     finally:
         cv2.destroyAllWindows()
         tracker.stop()
         camara.stop()
+
+    if prueba_completada:
+        try:
+            guardar_csv(resultados)
+            print("Prueba terminada. Resultados guardados en el CSV.")
+        except Exception as error:
+            print("Error al guardar los resultados:", error)
+    elif not prueba_cancelada:
+        print("La prueba no generó datos completos. No se han guardado resultados.")
+    elif prueba_cancelada:
+        print("Prueba cancelada. No se han guardado resultados.")
 
 
 if __name__ == "__main__":
